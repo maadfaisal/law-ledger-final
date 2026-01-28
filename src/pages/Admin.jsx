@@ -41,15 +41,17 @@ const Admin = () => {
   }, []);
 
   // --- FETCH DATA FOR MANAGE TAB ---
+
+  
   useEffect(() => {
     if (isAuthenticated && activeTab === 'manage') {
         // Blogs lao
-        fetch('http://localhost:5000/api/blogs')
+        fetch('https://musab-law-ledger.onrender.com/api/blogs')
             .then(res => res.json())
             .then(data => setAllBlogs(data));
         
         // Notes lao (Assuming /api/notes endpoint exists for fetching all)
-        fetch('http://localhost:5000/api/notes')
+        fetch('https://musab-law-ledger.onrender.com/api/notes')
             .then(res => res.json())
             .then(data => setAllNotes(data))
             .catch(err => console.log("Notes fetch error, maybe route missing?"));
@@ -62,7 +64,7 @@ const Admin = () => {
     const endpoint = isLoginMode ? '/api/login' : '/api/register';
     
     try {
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      const response = await fetch(`https://musab-law-ledger.onrender.com${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -99,7 +101,7 @@ const Admin = () => {
     const endpoint = type === 'blog' ? `/api/blogs/${id}` : `/api/notes/${id}`;
     
     try {
-        const res = await fetch(`http://localhost:5000${endpoint}`, { method: 'DELETE' });
+        const res = await fetch(`https://musab-law-ledger.onrender.com${endpoint}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
             alert(type === 'blog' ? "Blog Deleted!" : "Note Deleted!");
@@ -122,7 +124,7 @@ const Admin = () => {
     formData.append('topic', topic);
     formData.append('author', currentUser);
     try {
-      const response = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: formData });
+      const response = await fetch('https://musab-law-ledger.onrender.com/api/upload', { method: 'POST', body: formData });
       const data = await response.json();
       if (data.success) {
         alert("✅ Uploaded!");
@@ -136,7 +138,7 @@ const Admin = () => {
   const handleBlogSubmit = async () => {
     if (!blogTitle || !blogContent) return alert("Required fields missing");
     try {
-        const response = await fetch('http://localhost:5000/api/blogs', {
+        const response = await fetch('https://musab-law-ledger.onrender.com/api/blogs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: blogTitle, category: blogCategory, content: blogContent, author: currentUser })

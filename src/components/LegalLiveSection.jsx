@@ -10,7 +10,7 @@ const LegalLiveSection = () => {
     const fetchNews = async () => {
       try {
         // Humare naye Server se data maango
-        const response = await fetch('http://localhost:5000/api/news');
+        const response = await fetch('https://musab-law-ledger.onrender.com/api/news');
         const data = await response.json();
         setUpdates(data);
         setLoading(false);

@@ -10,7 +10,7 @@ const Notes = () => {
   useEffect(() => {
     const fetchNotes = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/notes');
+        const response = await fetch('https://musab-law-ledger.onrender.com/api/notes');
         const data = await response.json();
         setNotesData(data);
         setLoading(false);

@@ -11,15 +11,16 @@ html {
 
 /* --- 2. CURSOR LOGIC (Hammer Cursor Setup) --- */
 /* Default mouse chupao taaki Custom Hammer dikhe */
-@media (max-width: 767px) {
-body, html {
-    cursor: none !important;
-}
-}
-
 @media (min-width: 768px) {
     body, html, button, a, input, textarea, select {
         cursor: none !important;
+    }
+}
+
+/* Mobile par Normal rehne do */
+@media (max-width: 767px) {
+    body, html {
+        cursor: auto !important;
     }
 }
 /* Lekin Inputs/Textarea par 'Text' cursor aana chahiye */

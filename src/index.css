@@ -2,11 +2,15 @@
 html {
   scroll-behavior: smooth !important; /* 🔥 YE HAI MAGIC LINE (Smooth Scroll ke liye) */
 }
-
+* {
+    box-sizing: border-box; /* Padding width ko nahi badhayega */
+}
 :root {
   font-family: 'Space Mono', monospace; /* Font consistent rakha */
   background-color: #020c1b;
   color: #e6f1ff;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* --- 2. CURSOR LOGIC (Hammer Cursor Setup) --- */
@@ -37,9 +41,11 @@ button, a, .clickable {
 body, html, #root {
   margin: 0;
   padding: 0;
-  width: 100%;
+  width: 100vw;
   min-height: 100%; /* Height fix taaki scroll lock na ho */
   overflow-x: hidden; /* Side scroll roko */
+  margin: 0;
+  padding: 0;
 }
 
 /* --- 4. POINTER EVENTS (Clicking Fixes) --- */

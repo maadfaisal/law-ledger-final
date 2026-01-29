@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Background from '../components/Background';
 import Hero from '../components/Hero';
 import Navbar from '../components/Navbar';
@@ -42,11 +42,9 @@ const Home = () => {
       
       <Hero />
       <LegalLiveSection />
-      
-      <div style={{ padding: '0 10%' }}>
+     <div style={{ padding: isMobile ? '0 5%' : '0 10%' }}>
         <NewsTicker />
       </div>
-
       {/* --- ROBOT SECTION (Mobile par Hide rahega) --- */}
       <div style={{ minHeight: isMobile ? '150px' : '500px' }}>
         {!isMobile ? (
@@ -81,7 +79,7 @@ const Home = () => {
       <Notes />
       <Blogs />
 
-      <section id="more-blogs" style={{ padding: '50px 10%', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <section id="more-blogs" style={{ padding: isMobile ? '50px 5%' : '50px 10%', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <h2 className="font-head" style={{ fontSize: '2.5rem', marginBottom: '20px' }}>Latest Perspectives</h2>
         <div style={{ padding: '40px', background: 'rgba(17,34,64,0.5)', borderRadius: '8px' }}>
           <p style={{ color: '#8892b0' }}>More resources loading soon...</p>

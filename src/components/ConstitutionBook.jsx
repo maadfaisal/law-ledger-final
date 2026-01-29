@@ -1,33 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // ✅ Import Fixed
 import HTMLFlipBook from 'react-pageflip';
 import { Document, Page, pdfjs } from 'react-pdf';
 
-// Styles imports
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// 🔥 IMPORTANT: Worker Setup for Vite
-// Ye line sabse zaroori hai. Ye local worker file use karegi.
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
 ).toString();
 
 const ConstitutionBook = () => {
-  const [numPages, setNumPages] = useState(null);
+  // Logic: Screen size ke hisaab se book ki chaurai set karna
   const [bookWidth, setBookWidth] = useState(window.innerWidth < 500 ? 300 : 400);
-  function onDocumentLoadSuccess({ numPages }) {
-    setNumPages(numPages);
-  }
+  const [numPages, setNumPages] = useState(null);
+
   useEffect(() => {
     const handleResize = () => setBookWidth(window.innerWidth < 500 ? 300 : 400);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  // Error pakadne ke liye function
-  function onDocumentLoadError(error) {
-    console.error("❌ PDF Load Error:", error);
-    alert("PDF load nahi hui! Console check karo detail ke liye.");
+
+  function onDocumentLoadSuccess({ numPages }) {
+    setNumPages(numPages);
   }
 
   return (
@@ -46,25 +41,22 @@ const ConstitutionBook = () => {
 
       <div style={{ boxShadow: '0 0 20px rgba(100, 255, 218, 0.3)' }}>
         <Document
-            file="/constitution.pdf" // 👈 Check karo ye file Public folder me hai na?
+            file="/constitution.pdf"
             onLoadSuccess={onDocumentLoadSuccess}
-            onLoadError={onDocumentLoadError} // Error dikhayega
             loading={<div style={{color:'white'}}>Loading Constitution...</div>}
-            error={<div style={{color:'red'}}>Failed to load PDF! Check file path.</div>}
         >
             <HTMLFlipBook 
-                width={bookWidth}
+                width={bookWidth} 
                 height={570} 
                 showCover={true}
                 mobileScrollSupport={true}
                 className="flip-book"
             >
-                {/* Pages Loop (First 15 pages) */}
                 {Array.from(new Array(15), (el, index) => (
                     <div key={index} style={pageStyle}>
                         <Page 
                             pageNumber={index + 1} 
-                            width={bookWidth}
+                            width={bookWidth} 
                             renderTextLayer={false} 
                             renderAnnotationLayer={false} 
                         />

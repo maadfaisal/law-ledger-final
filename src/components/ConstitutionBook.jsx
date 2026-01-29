@@ -15,11 +15,15 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 const ConstitutionBook = () => {
   const [numPages, setNumPages] = useState(null);
-
+  const [bookWidth, setBookWidth] = useState(window.innerWidth < 500 ? 300 : 400);
   function onDocumentLoadSuccess({ numPages }) {
     setNumPages(numPages);
   }
-
+  useEffect(() => {
+    const handleResize = () => setBookWidth(window.innerWidth < 500 ? 300 : 400);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   // Error pakadne ke liye function
   function onDocumentLoadError(error) {
     console.error("❌ PDF Load Error:", error);
@@ -49,7 +53,7 @@ const ConstitutionBook = () => {
             error={<div style={{color:'red'}}>Failed to load PDF! Check file path.</div>}
         >
             <HTMLFlipBook 
-                width={400} 
+                width={bookWidth}
                 height={570} 
                 showCover={true}
                 mobileScrollSupport={true}
@@ -60,7 +64,7 @@ const ConstitutionBook = () => {
                     <div key={index} style={pageStyle}>
                         <Page 
                             pageNumber={index + 1} 
-                            width={400} 
+                            width={bookWidth}
                             renderTextLayer={false} 
                             renderAnnotationLayer={false} 
                         />

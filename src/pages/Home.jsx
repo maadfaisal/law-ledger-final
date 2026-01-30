@@ -5,7 +5,7 @@ const Home = () => {
     <div style={{
       height: '100vh',        // Poori screen height
       width: '100vw',         // Poori screen width
-      backgroundColor: '#7BC4E8', // Image ke sky color se match kiya
+      backgroundColor: '#000000', // Image ke sky color se match kiya
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',

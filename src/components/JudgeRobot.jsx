@@ -3,13 +3,12 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { useGLTF, useAnimations, PerspectiveCamera, Environment, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- ROBOT MODEL ---
+// --- ROBOT MODEL (Logic Same hai) ---
 const RobotModel = ({ mouse, isStriking, setIsStriking }) => {
   const { scene, animations } = useGLTF('/robot.glb'); 
   const { actions } = useAnimations(animations, scene);
   const headRef = useRef();
   
-  // Head Tracking
   useEffect(() => {
     scene.traverse((child) => {
       if (child.isBone && (child.name.includes('Head') || child.name.includes('Neck'))) {
@@ -18,7 +17,6 @@ const RobotModel = ({ mouse, isStriking, setIsStriking }) => {
     });
   }, [scene]);
 
-  // Hammer Animation
   useEffect(() => {
     if (isStriking) {
       const actionName = Object.keys(actions).find(key => key.toLowerCase().includes('attack') || key.toLowerCase().includes('hit')) || Object.keys(actions)[0];
@@ -32,7 +30,6 @@ const RobotModel = ({ mouse, isStriking, setIsStriking }) => {
     }
   }, [isStriking, actions, setIsStriking]);
 
-  // Head Rotation
   useFrame(() => {
     if (headRef.current) {
       const targetX = (mouse.current.x / window.innerWidth - 0.5) * 2;
@@ -45,8 +42,9 @@ const RobotModel = ({ mouse, isStriking, setIsStriking }) => {
   return (
     <primitive 
       object={scene} 
-      scale={1.6} // 👇 SIZE THODA CHOTA KIYA (Taaki frame mein fit aaye)
-      position={[0, -2.8, 0]} // 👇 POSITION ADJUST KI (Thoda neeche khiskaya)
+      scale={1.7} // Thoda bada dikhega
+      position={[0, -3, 0]} 
+      rotation={[0, -0.5, 0]} // Thoda Left ki taraf muda hua (Text ki taraf dekhega)
     />
   );
 };
@@ -67,36 +65,40 @@ const JudgeRobot = () => {
   return (
     <div 
       style={{
-        position: 'absolute', 
-        top: '100px',      
-        right: '2%',       // 👇 Thoda dynamic rakha taaki screen se kate nahi
-        width: '400px',    // 👇 WIDTH BADHAYI
-        height: '600px',   // 👇 HEIGHT BADHAYI (Ab pair nahi katenge)
-        zIndex: 50,        
-        pointerEvents: 'auto', 
+        // 🔥 SUPER IMPORTANT SETTINGS
+        position: 'fixed',      // Scroll se independent
+        top: '80px',            // Navbar ke neeche
+        right: '0px',           // 🔥 BILKUL RIGHT MEIN CHIPKA DIYA
+        left: 'auto',           // 🔥 LEFT SE KOI WAASTA NAHI
+        
+        width: '500px',         // Width thodi badhai taaki kat na jaye
+        height: '600px',        
+        zIndex: 50,             
+        pointerEvents: 'none',  // Aar-paar click allow karega
       }}
     >
-      <Canvas>
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={1} color="#64ffda" />
-        <spotLight position={[-10, 20, 10]} angle={0.3} intensity={2} color="#ffc107" />
+      <div style={{ width: '100%', height: '100%', pointerEvents: 'auto' }}>
+        <Canvas>
+          <ambientLight intensity={0.6} />
+          <pointLight position={[10, 10, 10]} intensity={1} color="#64ffda" />
+          <spotLight position={[-10, 20, 10]} angle={0.3} intensity={2} color="#ffc107" />
 
-        {/* 👇 CAMERA PEECHE LIYA (Z = 8) taaki pura view aaye */}
-        <PerspectiveCamera makeDefault position={[0, 0, 8]} fov={50} />
+          <PerspectiveCamera makeDefault position={[0, 0, 8]} fov={50} />
 
-        <OrbitControls 
-            enableZoom={false} 
-            enablePan={false}
-            minPolarAngle={Math.PI / 3} 
-            maxPolarAngle={Math.PI / 2}
-        />
+          <OrbitControls 
+             enableZoom={false} 
+             enablePan={false}
+             minPolarAngle={Math.PI / 3} 
+             maxPolarAngle={Math.PI / 2}
+          />
 
-        <group onClick={() => setIsStriking(true)}>
-            <RobotModel mouse={mouse} isStriking={isStriking} setIsStriking={setIsStriking} />
-        </group>
-        
-        <Environment preset="city" />
-      </Canvas>
+          <group onClick={() => setIsStriking(true)}>
+             <RobotModel mouse={mouse} isStriking={isStriking} setIsStriking={setIsStriking} />
+          </group>
+          
+          <Environment preset="city" />
+        </Canvas>
+      </div>
     </div>
   );
 };

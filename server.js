@@ -5,54 +5,46 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import mongoose from 'mongoose'; // <-- MONGODB DRIVER
+import mongoose from 'mongoose';
+import dotenv from 'dotenv'; // Agar .env use karna ho to
 
 // --- SETUP ---
 const app = express();
 const parser = new Parser();
+dotenv.config();
 
-// Aisa kuch likha hoga upar:
-
-
-// Current Directory Fix (ES Modules ke liye)
+// Current Directory Fix
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(cors({
-    origin: "*", // Frontend ka URL
-    methods: ["GET", "POST", "PUT", "DELETE"], // 🔥 Yahan humne DELETE allow kiya
+    origin: "*", 
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json());
 
 // --- 1. MONGODB CONNECTION 🔗 ---
-// Agar Atlas use kar rahe ho to wahan ka URL daalna. 
-// Abhi Localhost set hai.
 const MONGO_URI = "mongodb+srv://FAISAL:MAAD@cluster0.ftl5jci.mongodb.net/?appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ MongoDB Connected Successfully!"))
     .catch((err) => console.error("❌ MongoDB Connection Error:", err));
-    useNewUrlParser: true;
-    useUnifiedTopology: true;
 
-// --- 2. DATABASE MODELS (SCHEMAS) 📝 ---
-
-// A. Admin User Model
+// --- 2. DATABASE MODELS ---
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true } 
 });
 const User = mongoose.model('User', userSchema);
 
-// B. Notes Model (Ab files ka record yahan save hoga)
 const noteSchema = new mongoose.Schema({
     subject: String,
     topic: String,
     date: String,
     fileName: String,
-    author: String, // <--- 🔥 NEW: Ye batayega kisne upload kiya
+    author: String,
     createdAt: { type: Date, default: Date.now }
 });
 const Note = mongoose.model('Note', noteSchema);
@@ -61,13 +53,12 @@ const blogSchema = new mongoose.Schema({
     title: String,
     category: String,
     content: String,
-    author: String, // <--- Ye ab User ka naam store karega
+    author: String,
     date: { type: Date, default: Date.now }
 });
 const Blog = mongoose.model('Blog', blogSchema);
 
-
-// --- 3. MULTER CONFIG (File Upload) 📂 ---
+// --- 3. MULTER CONFIG ---
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
@@ -75,75 +66,41 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '-')) // Spaces hata diye filename se
 });
 const upload = multer({ storage });
+
+// Serve Uploads Folder Publicly (Zaroori hai download ke liye)
 app.use('/uploads', express.static(uploadDir));
 
 
 // --- ROUTES ---
 
-// ➤ ROUTE 1: Admin Registration (Sign Up)
+// Admin Register
 app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
-        
-        // Check duplicate user
         const existingUser = await User.findOne({ username });
         if (existingUser) return res.status(400).json({ error: "Username already exists" });
-
-        // Save New User
         const newUser = new User({ username, password });
         await newUser.save();
-
-        console.log("👤 New Admin Created:", username);
         res.json({ success: true, message: "Account created!" });
-
-    } catch (error) {
-        res.status(500).json({ error: "Server Error" });
-    }
+    } catch (error) { res.status(500).json({ error: "Server Error" }); }
 });
 
-// ➤ ROUTE 2: Admin Login
+// Admin Login
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        
-        // Find user
         const user = await User.findOne({ username });
-        if (!user) return res.status(400).json({ error: "User not found" });
-
-        // Simple Password Check (Production me bcrypt use karna chahiye)
-        if (user.password !== password) {
+        if (!user || user.password !== password) {
             return res.status(400).json({ error: "Invalid Credentials" });
         }
-
         res.json({ success: true, message: "Login Successful" });
-
-    } catch (error) {
-        res.status(500).json({ error: "Server Error" });
-    }
+    } catch (error) { res.status(500).json({ error: "Server Error" }); }
 });
 
-app.post('/api/blogs', async (req, res) => {
-    try {
-        // Frontend se 'author' bhi aayega ab
-        const { title, category, content, author } = req.body; 
-        
-        const newBlog = new Blog({ 
-            title, 
-            category, 
-            content, 
-            author: author || "Anonymous" // Agar naam nahi aaya to Anonymous
-        });
-        
-        await newBlog.save();
-        res.json({ success: true, message: "Blog published!" });
-    } catch (error) {
-        res.status(500).json({ error: "Failed to publish blog" });
-    }
-});
-// ➤ ROUTE 3: Upload Note (Save to MongoDB)
+// Upload Note
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -151,30 +108,55 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         const newNote = new Note({
             subject: req.body.subject,
             topic: req.body.topic,
-            author: req.body.author || "Anonymous", // <--- 🔥 Backend ab Author save karega
+            author: req.body.author || "Anonymous",
             date: new Date().toLocaleDateString(),
             fileName: req.file.filename
         });
 
         await newNote.save();
         res.json({ success: true, file: req.file });
-    } catch (error) {
-        res.status(500).json({ error: "Upload failed" });
-    }
+    } catch (error) { res.status(500).json({ error: "Upload failed" }); }
 });
 
-// ➤ ROUTE 4: Get All Notes (Fetch from MongoDB)
+// ➤ 🔥 UPDATED: Get All Notes (With Download Link)
+
 app.get('/api/notes', async (req, res) => {
     try {
-        // Database se saare notes maango (Latest pehle)
         const notes = await Note.find().sort({ createdAt: -1 });
-        res.json(notes);
+        
+        // Notes ke saath Full URL jod kar bhejo
+        const updatedNotes = notes.map(note => {
+            return {
+                ...note._doc, // Purana data
+                // URL banao: https://your-site.onrender.com/uploads/filename.pdf
+                downloadLink: `${req.protocol}://${req.get('host')}/uploads/${note.fileName}`
+            };
+        });
+
+        res.json(updatedNotes);
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch notes" });
     }
 });
+// Post Blog
+app.post('/api/blogs', async (req, res) => {
+    try {
+        const { title, category, content, author } = req.body; 
+        const newBlog = new Blog({ title, category, content, author: author || "Anonymous" });
+        await newBlog.save();
+        res.json({ success: true, message: "Blog published!" });
+    } catch (error) { res.status(500).json({ error: "Failed to publish blog" }); }
+});
 
-// ➤ ROUTE 5: Google News (Live Feed)
+// Get Blogs
+app.get('/api/blogs', async (req, res) => {
+    try {
+        const blogs = await Blog.find().sort({ date: -1 });
+        res.json(blogs);
+    } catch (error) { res.status(500).json({ error: "Failed to fetch blogs" }); }
+});
+
+// Google News
 app.get('/api/news', async (req, res) => {
     try {
         const feed = await parser.parseURL('https://news.google.com/rss/search?q=Supreme+Court+of+India+Legal+News&hl=en-IN&gl=IN&ceid=IN:en');
@@ -182,71 +164,49 @@ app.get('/api/news', async (req, res) => {
             title: item.title,
             link: item.link,
             date: item.pubDate,
-            source: item.contentSnippet || "Google News"
         }));
         res.json(news);
-    } catch (error) {
-        res.json([{ title: "Server Error: Backend Check Karo", link: "#" }]);
-    }
-});
-app.get('/api/blogs', async (req, res) => {
-    try {
-        const blogs = await Blog.find().sort({ date: -1 }); // Latest first
-        res.json(blogs);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch blogs" });
-    }
+    } catch (error) { res.json([{ title: "Check Backend Console", link: "#" }]); }
 });
 
 
-// ... (Upar ka saara code waisa hi rehne do)
+// ➤ DELETE ROUTES
 
-// ➤ DELETE ROUTES (Inhein sabse neeche rakho, app.listen se pehle)
-
-// 1. Delete Blog
+// Delete Blog
 app.delete('/api/blogs/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        console.log("Deleting Blog ID:", id); // Terminal mein ID dikhegi
-
-        // Pehle check karo model defined hai ya nahi
-        if (!Blog) throw new Error("Blog Model is not defined");
-
         const deletedBlog = await Blog.findByIdAndDelete(id);
-        
-        if (!deletedBlog) {
-            return res.status(404).json({ error: "Blog not found (Already deleted?)" });
-        }
-
+        if (!deletedBlog) return res.status(404).json({ error: "Blog not found" });
         res.json({ success: true, message: "Blog Deleted Successfully" });
-    } catch (error) {
-        console.error("🔥 DELETE ERROR:", error.message); // Asli error yahan chap jayega
-        res.status(500).json({ error: error.message });
-    }
+    } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 2. Delete Note
+// ➤ 🔥 UPDATED: Delete Note (Also deletes file from folder)
 app.delete('/api/notes/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        console.log("Deleting Note ID:", id);
+        
+        // 1. Database se note dhundo
+        const noteToDelete = await Note.findById(id);
+        if (!noteToDelete) return res.status(404).json({ error: "Note not found" });
 
-        if (!Note) throw new Error("Note Model is not defined");
-
-        const deletedNote = await Note.findByIdAndDelete(id);
-
-        if (!deletedNote) {
-            return res.status(404).json({ error: "Note not found" });
+        // 2. Uploads folder se file uda do
+        const filePath = path.join(uploadDir, noteToDelete.fileName);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath); // File delete
         }
 
-        res.json({ success: true, message: "Note Deleted Successfully" });
+        // 3. Database se entry uda do
+        await Note.findByIdAndDelete(id);
+
+        res.json({ success: true, message: "Note & File Deleted Successfully" });
     } catch (error) {
-        console.error("🔥 DELETE ERROR:", error.message);
+        console.error("Delete Error:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-
 // Start Server
 const PORT = process.env.PORT || 5000; 
-app.listen(PORT, () => console.log(`🚀 Server running`));
+app.listen(PORT, () => console.log(`🚀 Server running on Port ${PORT}`));

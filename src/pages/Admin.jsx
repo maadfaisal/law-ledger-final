@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Upload, PenTool, LogOut, Trash2, FolderOpen } from 'lucide-react'; // Trash2 icon import kiya
+import { Upload, PenTool, LogOut, Trash2, FolderOpen, User } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import CustomCursor from '../components/CustomCursor'; 
 
@@ -11,10 +11,10 @@ const Admin = () => {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [activeTab, setActiveTab] = useState('notes'); // Tabs: 'notes', 'blog', 'manage'
 
-  // Manage Data State (Delete karne ke liye)
+  // Manage Data State
   const [allNotes, setAllNotes] = useState([]);
   const [allBlogs, setAllBlogs] = useState([]);
-  const [refreshKey, setRefreshKey] = useState(0); // List refresh karne ke liye
+  const [refreshKey, setRefreshKey] = useState(0); 
 
   // Auth Inputs
   const [username, setUsername] = useState("");
@@ -31,6 +31,15 @@ const Admin = () => {
   const [blogCategory, setBlogCategory] = useState("General");
   const [blogContent, setBlogContent] = useState("");
 
+  // Responsive Check
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // --- AUTO-LOGIN ---
   useEffect(() => {
     const savedUser = localStorage.getItem("lawUser");
@@ -41,24 +50,20 @@ const Admin = () => {
   }, []);
 
   // --- FETCH DATA FOR MANAGE TAB ---
-
-  
   useEffect(() => {
     if (isAuthenticated && activeTab === 'manage') {
-        // Blogs lao
         fetch('https://musab-law-ledger.onrender.com/api/blogs')
             .then(res => res.json())
             .then(data => setAllBlogs(data));
         
-        // Notes lao (Assuming /api/notes endpoint exists for fetching all)
         fetch('https://musab-law-ledger.onrender.com/api/notes')
             .then(res => res.json())
             .then(data => setAllNotes(data))
-            .catch(err => console.log("Notes fetch error, maybe route missing?"));
+            .catch(err => console.log("Notes fetch error"));
     }
   }, [isAuthenticated, activeTab, refreshKey]);
 
-  // --- HANDLERS ---
+  // --- HANDLERS (Auth, Upload, Blog, Delete) ---
   const handleAuth = async () => {
     if (!username || !password) return alert("Please fill all fields");
     const endpoint = isLoginMode ? '/api/login' : '/api/register';
@@ -94,10 +99,8 @@ const Admin = () => {
     setCurrentUser("");
   };
 
-  // --- DELETE HANDLER ---
   const handleDelete = async (type, id) => {
     if(!window.confirm("Are you sure you want to delete this?")) return;
-
     const endpoint = type === 'blog' ? `/api/blogs/${id}` : `/api/notes/${id}`;
     
     try {
@@ -105,7 +108,7 @@ const Admin = () => {
         const data = await res.json();
         if (data.success) {
             alert(type === 'blog' ? "Blog Deleted!" : "Note Deleted!");
-            setRefreshKey(prev => prev + 1); // List refresh karo
+            setRefreshKey(prev => prev + 1);
         } else {
             alert("Failed to delete.");
         }
@@ -114,7 +117,6 @@ const Admin = () => {
     }
   };
 
-  // --- UPLOAD HANDLER ---
   const handleUpload = async () => {
     if (!file || !subject || !topic) return alert("Select file & details");
     setUploading(true);
@@ -134,7 +136,6 @@ const Admin = () => {
     } catch (e) { alert("Error"); } finally { setUploading(false); }
   };
 
-  // --- BLOG HANDLER ---
   const handleBlogSubmit = async () => {
     if (!blogTitle || !blogContent) return alert("Required fields missing");
     try {
@@ -151,42 +152,102 @@ const Admin = () => {
     } catch (e) { alert("Error"); }
   };
 
-  // --- RENDER 1: LOGIN ---
+  // --- RENDER 1: LOGIN SCREEN (Centered & Responsive) ---
   if (!isAuthenticated) {
     return (
-      <div style={{ height: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020c1b', position: 'relative', zIndex: 1000 }}>
-        <div style={{ background: 'rgba(17, 34, 64, 0.8)', padding: '40px', borderRadius: '12px', border: '1px solid #64ffda', width: '350px', textAlign: 'center' }}>
-          <h2 style={{ color: '#e6f1ff', marginBottom: '20px' }}>{isLoginMode ? "Login" : "Join Us"}</h2>
+      <div style={{ 
+          minHeight: '100vh', // height: 100vh hata diya taaki keyboard se kate nahi
+          width: '100%', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          background: '#020c1b', 
+          position: 'relative', 
+          zIndex: 1000,
+          padding: '20px' // Mobile par padding
+      }}>
+        <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            style={{ 
+                background: 'rgba(17, 34, 64, 0.9)', 
+                padding: isMobile ? '30px 20px' : '50px', 
+                borderRadius: '16px', 
+                border: '1px solid #64ffda', 
+                width: '100%', 
+                maxWidth: '400px', 
+                textAlign: 'center',
+                boxShadow: '0 0 30px rgba(100, 255, 218, 0.1)'
+            }}>
+          <div style={{ marginBottom: '20px', color: '#64ffda' }}>
+            <User size={48} />
+          </div>
+          <h2 style={{ color: '#e6f1ff', marginBottom: '10px' }}>{isLoginMode ? "Welcome Back" : "Join the Ledger"}</h2>
+          <p style={{ color: '#8892b0', marginBottom: '30px', fontSize: '0.9rem' }}>Access your dashboard</p>
+          
           <input type="text" placeholder="Username" style={inputStyle} value={username} onChange={(e) => setUsername(e.target.value)} />
           <input type="password" placeholder="Password" style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
-          <button onClick={handleAuth} style={{ ...btnStyle, width: '100%', marginTop: '20px', background: isLoginMode ? '#64ffda' : '#ffc107', color: '#000' }}>{isLoginMode ? "Login" : "Sign Up"}</button>
-          <p style={{ marginTop: '15px', color: '#8892b0', cursor:'pointer' }} onClick={() => setIsLoginMode(!isLoginMode)}>{isLoginMode ? "New? Create Account" : "Login Here"}</p>
-        </div>
+          
+          <button onClick={handleAuth} style={{ ...btnStyle, width: '100%', marginTop: '10px', background: isLoginMode ? '#64ffda' : '#ffc107', color: '#000' }}>{isLoginMode ? "Login" : "Sign Up"}</button>
+          
+          <p style={{ marginTop: '20px', color: '#8892b0', cursor:'pointer', fontSize: '0.9rem', textDecoration: 'underline' }} onClick={() => setIsLoginMode(!isLoginMode)}>
+              {isLoginMode ? "New here? Create Account" : "Already have an account? Login"}
+          </p>
+        </motion.div>
       </div>
     );
   }
 
-  // --- RENDER 2: DASHBOARD ---
+  // --- RENDER 2: DASHBOARD (Full Responsive) ---
   return (
     <>
-     <CustomCursor />
+      <CustomCursor />
       <Navbar />
-      <div style={{ width: '100%', minHeight: '100vh', background: '#020c1b', paddingTop: '120px', paddingBottom: '50px', boxSizing: 'border-box', overflowX: 'hidden' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 20px', position: 'relative', zIndex: 1000 }}>
+      <div style={{ 
+          width: '100%', 
+          minHeight: '100vh', 
+          background: '#020c1b', 
+          paddingTop: isMobile ? '100px' : '140px', // Mobile par header space kam
+          paddingBottom: '50px', 
+          paddingLeft: isMobile ? '15px' : '20px',
+          paddingRight: isMobile ? '15px' : '20px',
+          boxSizing: 'border-box'
+      }}>
+        
+        <div style={{ maxWidth: '1000px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
             
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+            {/* Header Area */}
+            <div style={{ 
+                display: 'flex', 
+                flexDirection: isMobile ? 'column' : 'row', // Mobile par stack
+                justifyContent: 'space-between', 
+                alignItems: isMobile ? 'flex-start' : 'center', 
+                marginBottom: '40px',
+                gap: '20px'
+            }}>
                 <div>
-                    <h1 style={{ fontSize: '2.5rem', color: '#e6f1ff', margin: 0, fontWeight: 'bold' }}>Welcome, <span style={{ color: '#64ffda' }}>{currentUser}</span></h1>
+                    <h1 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', color: '#e6f1ff', margin: 0, fontWeight: 'bold' }}>
+                        Hello, <span style={{ color: '#64ffda' }}>{currentUser}</span>
+                    </h1>
                     <p style={{color: '#8892b0', marginTop: '5px'}}>Dashboard & Control Panel</p>
                 </div>
-                <button onClick={handleLogout} style={{ background: 'rgba(255, 0, 0, 0.1)', border: '1px solid red', color: '#ff4d4d', padding: '10px 20px', borderRadius: '8px', cursor:'pointer', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 'bold' }}>
+                <button onClick={handleLogout} style={{ 
+                    background: 'rgba(255, 0, 0, 0.1)', border: '1px solid red', color: '#ff4d4d', 
+                    padding: '10px 20px', borderRadius: '8px', cursor:'pointer', 
+                    display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 'bold',
+                    width: isMobile ? '100%' : 'auto', justifyContent: 'center'
+                }}>
                     <LogOut size={18} /> Logout
                 </button>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
+            {/* Navigation Tabs (Grid Layout for Mobile) */}
+            <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', // Mobile par vertical list
+                gap: '15px', 
+                marginBottom: '30px' 
+            }}>
                 <TabButton active={activeTab === 'notes'} onClick={() => setActiveTab('notes')} icon={<Upload size={18}/>}>Upload Notes</TabButton>
                 <TabButton active={activeTab === 'blog'} onClick={() => setActiveTab('blog')} icon={<PenTool size={18}/>}>Write Blog</TabButton>
                 <TabButton active={activeTab === 'manage'} onClick={() => setActiveTab('manage')} icon={<FolderOpen size={18}/>}>Manage Content</TabButton>
@@ -195,84 +256,99 @@ const Admin = () => {
             {/* --- UPLOAD SECTION --- */}
             {activeTab === 'notes' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={cardStyle}>
-                <h3 style={{ color: '#64ffda', marginBottom: '25px', display:'flex', alignItems:'center', gap:'10px' }}><span style={{fontSize:'2rem'}}>📂</span> Upload New Notes</h3>
+                <h3 style={sectionHeadStyle}>📂 Upload New Notes</h3>
+                
                 <label style={labelStyle}>Subject Name</label>
                 <input type="text" placeholder="Ex: Constitutional Law" style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} />
+                
                 <label style={labelStyle}>Topic Description</label>
                 <input type="text" placeholder="Ex: Fundamental Rights Notes" style={inputStyle} value={topic} onChange={(e) => setTopic(e.target.value)} />
-                <div style={{ margin: '25px 0', border: '2px dashed #233554', padding: '30px', borderRadius: '12px', textAlign: 'center', background: 'rgba(2, 12, 27, 0.5)' }}>
-                    <input id="fileInput" type="file" onChange={(e) => setFile(e.target.files[0])} style={{ color: '#e6f1ff' }} />
+                
+                <div style={fileUploadBoxStyle}>
+                    <input id="fileInput" type="file" onChange={(e) => setFile(e.target.files[0])} style={{ color: '#e6f1ff', width: '100%' }} />
                 </div>
-                <button onClick={handleUpload} disabled={uploading} style={btnStyle}>{uploading ? "Uploading..." : "Upload File 🚀"}</button>
+                
+                <button onClick={handleUpload} disabled={uploading} style={btnStyle}>
+                    {uploading ? "Uploading..." : "Upload File 🚀"}
+                </button>
             </motion.div>
             )}
 
             {/* --- BLOG SECTION --- */}
             {activeTab === 'blog' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={cardStyle}>
-                <h3 style={{ color: '#ffc107', marginBottom: '25px', display:'flex', alignItems:'center', gap:'10px' }}><span style={{fontSize:'2rem'}}>✍️</span> Write Article</h3>
+                <h3 style={{...sectionHeadStyle, color: '#ffc107'}}>✍️ Write Article</h3>
+                
                 <label style={labelStyle}>Headline</label>
                 <input type="text" placeholder="Ex: AI Laws in India" style={inputStyle} value={blogTitle} onChange={(e) => setBlogTitle(e.target.value)} />
+                
                 <label style={labelStyle}>Category</label>
                 <select style={inputStyle} value={blogCategory} onChange={(e) => setBlogCategory(e.target.value)}>
                     <option>General</option><option>Criminal Law</option><option>Corporate</option><option>Tech & AI</option>
                 </select>
+                
                 <label style={labelStyle}>Content</label>
-                <textarea rows="10" placeholder="Start typing..." style={{ ...inputStyle, resize: 'vertical', minHeight: '150px' }} value={blogContent} onChange={(e) => setBlogContent(e.target.value)} />
+                <textarea 
+                    rows="10" 
+                    placeholder="Start typing your legal insights..." 
+                    style={{ ...inputStyle, resize: 'vertical', minHeight: '150px', lineHeight: '1.6' }} 
+                    value={blogContent} 
+                    onChange={(e) => setBlogContent(e.target.value)} 
+                />
+                
                 <button onClick={handleBlogSubmit} style={{ ...btnStyle, background: '#ffc107', color: '#000' }}>Publish Article 🔥</button>
             </motion.div>
             )}
 
-            {/* --- MANAGE CONTENT SECTION (DELETE) --- */}
-           {/* --- MANAGE CONTENT SECTION (FILTERED) --- */}
+            {/* --- MANAGE CONTENT SECTION --- */}
             {activeTab === 'manage' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={cardStyle}>
-                <h3 style={{ color: '#e6f1ff', marginBottom: '10px' }}>🗑️ Manage Your Content</h3>
+                <h3 style={sectionHeadStyle}>🗑️ Manage Your Content</h3>
                 <p style={{ color: '#8892b0', marginBottom: '30px', fontSize: '0.9rem' }}>
                     You can only delete items uploaded by <strong>{currentUser}</strong>.
                 </p>
                 
                 {/* 1. FILTERED BLOGS LIST */}
-                <h4 style={{ color: '#ffc107', marginTop: '20px' }}>Your Blogs</h4>
-                {/* 👇 MAGIC FILTER: Sirf wahi dikhao jahan author == currentUser */}
-                {allBlogs.filter(blog => blog.author === currentUser).length === 0 ? (
-                    <p style={{color:'#8892b0', fontStyle:'italic'}}>You haven't posted any blogs yet.</p>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {allBlogs
-                            .filter(blog => blog.author === currentUser) // <--- FILTER HERE
-                            .map((blog) => (
+                <h4 style={{ color: '#ffc107', marginTop: '20px', borderBottom: '1px solid #233554', paddingBottom: '10px' }}>Your Blogs</h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
+                    {allBlogs.filter(blog => blog.author === currentUser).length === 0 ? (
+                        <p style={{color:'#8892b0', fontStyle:'italic'}}>No blogs found.</p>
+                    ) : (
+                        allBlogs.filter(blog => blog.author === currentUser).map((blog) => (
                             <div key={blog._id} style={itemStyle}>
-                                <div>
-                                    <span style={{ color: '#e6f1ff', fontWeight: 'bold' }}>{blog.title}</span>
-                                    <span style={{ display: 'block', fontSize: '0.8rem', color: '#8892b0' }}>{new Date(blog.date).toLocaleDateString()}</span>
+                                <div style={{ overflow: 'hidden', marginRight: '10px' }}>
+                                    <span style={{ color: '#e6f1ff', fontWeight: 'bold', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {blog.title}
+                                    </span>
+                                    <span style={{ fontSize: '0.8rem', color: '#8892b0' }}>{new Date(blog.date).toLocaleDateString()}</span>
                                 </div>
-                                <button onClick={() => handleDelete('blog', blog._id)} style={deleteBtnStyle}><Trash2 size={18}/></button>
+                                <button onClick={() => handleDelete('blog', blog._id)} style={deleteBtnStyle}><Trash2 size={20}/></button>
                             </div>
-                        ))}
-                    </div>
-                )}
+                        ))
+                    )}
+                </div>
 
                 {/* 2. FILTERED NOTES LIST */}
-                <h4 style={{ color: '#64ffda', marginTop: '40px' }}>Your Uploaded Notes</h4>
-                {/* 👇 MAGIC FILTER: Sirf wahi dikhao jahan author == currentUser */}
-                {allNotes.filter(note => note.author === currentUser).length === 0 ? (
-                    <p style={{color:'#8892b0', fontStyle:'italic'}}>You haven't uploaded any notes yet.</p>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {allNotes
-                            .filter(note => note.author === currentUser) // <--- FILTER HERE
-                            .map((note) => (
+                <h4 style={{ color: '#64ffda', marginTop: '40px', borderBottom: '1px solid #233554', paddingBottom: '10px' }}>Your Uploaded Notes</h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
+                    {allNotes.filter(note => note.author === currentUser).length === 0 ? (
+                        <p style={{color:'#8892b0', fontStyle:'italic'}}>No notes found.</p>
+                    ) : (
+                        allNotes.filter(note => note.author === currentUser).map((note) => (
                             <div key={note._id} style={itemStyle}>
-                                <div>
-                                    <span style={{ color: '#e6f1ff', fontWeight: 'bold' }}>{note.subject}</span>
-                                    <span style={{ display: 'block', fontSize: '0.8rem', color: '#8892b0' }}>{note.topic}</span>
+                                <div style={{ overflow: 'hidden', marginRight: '10px' }}>
+                                    <span style={{ color: '#e6f1ff', fontWeight: 'bold', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {note.subject}
+                                    </span>
+                                    <span style={{ fontSize: '0.8rem', color: '#8892b0' }}>{note.topic}</span>
                                 </div>
-                                <button onClick={() => handleDelete('note', note._id)} style={deleteBtnStyle}><Trash2 size={18}/></button>
+                                <button onClick={() => handleDelete('note', note._id)} style={deleteBtnStyle}><Trash2 size={20}/></button>
                             </div>
-                        ))}
-                    </div>
-                )}
+                        ))
+                    )}
+                </div>
             </motion.div>
             )}
         
@@ -282,17 +358,68 @@ const Admin = () => {
   );
 };
 
-// --- STYLES ---
-const inputStyle = { width: '100%', padding: '15px', background: '#0a192f', border: '1px solid #233554', color: 'white', borderRadius: '8px', marginBottom: '20px', fontFamily: 'Space Mono, monospace', boxSizing: 'border-box' };
+// --- STYLES (Refined for Responsiveness & z-index) ---
+
+const inputStyle = { 
+    width: '100%', padding: '15px', background: '#0a192f', border: '1px solid #233554', 
+    color: 'white', borderRadius: '8px', marginBottom: '20px', 
+    fontFamily: 'Space Mono, monospace', boxSizing: 'border-box',
+    fontSize: '16px', // Mobile par zoom roke
+    position: 'relative', zIndex: 2000, cursor: 'text' // Clickable
+};
+
 const labelStyle = { display: 'block', color: '#8892b0', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 'bold' };
-const btnStyle = { padding: '15px 30px', background: '#64ffda', color: '#020c1b', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'Space Mono, monospace', fontSize: '1rem', width: '100%' };
-const cardStyle = { background: 'rgba(17, 34, 64, 0.6)', padding: '40px', borderRadius: '16px', border: '1px solid rgba(100,255,218,0.1)', backdropFilter: 'blur(10px)' };
-// New Styles for Manage Tab
-const itemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(2, 12, 27, 0.8)', padding: '15px', borderRadius: '8px', border: '1px solid #233554' };
-const deleteBtnStyle = { background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', padding: '5px' };
+
+const btnStyle = { 
+    padding: '15px 30px', background: '#64ffda', color: '#020c1b', 
+    border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', 
+    fontFamily: 'Space Mono, monospace', fontSize: '1rem', width: '100%',
+    position: 'relative', zIndex: 2000 
+};
+
+const cardStyle = { 
+    background: 'rgba(17, 34, 64, 0.6)', padding: '30px', borderRadius: '16px', 
+    border: '1px solid rgba(100,255,218,0.1)', backdropFilter: 'blur(10px)',
+    width: '100%', boxSizing: 'border-box'
+};
+
+const sectionHeadStyle = {
+    color: '#64ffda', marginBottom: '25px', display:'flex', alignItems:'center', gap:'10px', fontSize: '1.5rem'
+};
+
+const fileUploadBoxStyle = {
+    margin: '25px 0', border: '2px dashed #233554', padding: '30px', 
+    borderRadius: '12px', textAlign: 'center', background: 'rgba(2, 12, 27, 0.5)',
+    position: 'relative', zIndex: 2000
+};
+
+// Manage Tab Items
+const itemStyle = { 
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+    background: 'rgba(2, 12, 27, 0.8)', padding: '15px', borderRadius: '8px', 
+    border: '1px solid #233554' 
+};
+
+const deleteBtnStyle = { 
+    background: 'rgba(255, 77, 77, 0.1)', border: 'none', color: '#ff4d4d', 
+    cursor: 'pointer', padding: '8px', borderRadius: '5px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    position: 'relative', zIndex: 2000 
+};
 
 const TabButton = ({ active, onClick, children, icon }) => (
-  <button onClick={onClick} style={{ display: 'flex', gap: '10px', padding: '12px 25px', background: active ? 'rgba(100, 255, 218, 0.1)' : 'transparent', border: active ? '1px solid #64ffda' : '1px solid #233554', color: active ? '#64ffda' : '#8892b0', cursor: 'pointer', borderRadius: '8px', alignItems:'center', fontWeight: 'bold' }}>{icon} {children}</button>
+  <button onClick={onClick} style={{ 
+      display: 'flex', gap: '10px', padding: '15px', 
+      background: active ? 'rgba(100, 255, 218, 0.1)' : 'transparent', 
+      border: active ? '1px solid #64ffda' : '1px solid #233554', 
+      color: active ? '#64ffda' : '#8892b0', 
+      cursor: 'pointer', borderRadius: '8px', alignItems:'center', 
+      fontWeight: 'bold', justifyContent: 'center',
+      position: 'relative', zIndex: 2000,
+      width: '100%'
+  }}>
+      {icon} {children}
+  </button>
 );
 
 export default Admin;

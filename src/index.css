@@ -1,91 +1,113 @@
-/* --- 1. GLOBAL SETTINGS & SMOOTH SCROLL --- */
-html {
-  scroll-behavior: smooth !important; /* 🔥 YE HAI MAGIC LINE (Smooth Scroll ke liye) */
+/* =========================================
+   1. LENIS SMOOTH SCROLL SETUP (Must Have)
+   ========================================= */
+html.lenis, html.lenis body {
+  height: auto;
 }
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important; /* Browser ka default smooth scroll band, Lenis chalega */
+}
+
+/* =========================================
+   2. UNIVERSAL RESET & LAYOUT
+   ========================================= */
 * {
-    box-sizing: border-box; /* Padding width ko nahi badhayega */
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-:root {
-  font-family: 'Space Mono', monospace; /* Font consistent rakha */
+
+html, body {
+  width: 100%;       /* ⚠️ Fix: 100vw hata diya (Horizontal scroll band) */
+  max-width: 100%;   
+  overflow-x: hidden; /* Side scrolling bilkul band */
   background-color: #020c1b;
   color: #e6f1ff;
+  font-family: 'Space Mono', monospace;
+}
+
+#root {
+  min-height: 100vh;
   width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* --- 2. CURSOR LOGIC (Hammer Cursor Setup) --- */
-/* Default mouse chupao taaki Custom Hammer dikhe */
-@media (min-width: 768px) {
-    body, html, button, a, input, textarea, select {
-        cursor: none !important;
-    }
+/* Images & Videos kabhi screen se bahar na jayein */
+img, video, iframe, canvas {
+  max-width: 100%;
+  height: auto;
+  display: block;
 }
 
-/* Mobile par Normal rehne do */
-@media (max-width: 767px) {
-    body, html {
-        cursor: auto !important;
-    }
-}
-/* Lekin Inputs/Textarea par 'Text' cursor aana chahiye */
-input, textarea, select {
-    cursor: text !important;
+/* =========================================
+   3. CURSOR FIX (Mouse Hamesha Dikhega) 🖱️
+   ========================================= */
+/* Bhai, maine 'cursor: none' hata diya hai.
+   Ab 'System Arrow' hamesha dikhega. 
+   Hammer wala cursor uske upar/saath chalega bas visual ke liye.
+   Isse mouse kabhi gayab nahi hoga.
+*/
+
+body, html {
+  cursor: auto !important; /* ✅ Asli Mouse Wapas Aa Gaya */
 }
 
-/* Buttons/Links par 'Hand' cursor aana chahiye */
+/* Buttons aur Links par Hand Icon aana chahiye */
 button, a, .clickable {
-    cursor: pointer !important;
+  cursor: pointer !important;
 }
 
-/* --- 3. LAYOUT & SCROLLING --- */
-body, html, #root {
-  margin: 0;
-  padding: 0;
-  width: 100vw;
-  min-height: 100%; /* Height fix taaki scroll lock na ho */
-  overflow-x: hidden; /* Side scroll roko */
-  margin: 0;
-  padding: 0;
+/* Text Inputs par Text wala cursor aana chahiye */
+input, textarea, select {
+  cursor: text !important;
 }
 
-/* --- 4. POINTER EVENTS (Clicking Fixes) --- */
-/* By default sab kuch clickable hona chahiye */
-* {
-  box-sizing: border-box; 
-  pointer-events: auto; /* Sab click ho sakein */
-}
-
-/* Sirf Background Canvas/Robot click na roke */
-canvas, .background-container {
+/* =========================================
+   4. Z-INDEX & INTERACTIONS
+   ========================================= */
+/* Background animation click block na kare */
+canvas, .background-container, #tsparticles {
   pointer-events: none !important; /* Click aar-paar jayega */
-  z-index: -1 !important; /* Sabse peeche */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* Sabse peeche */
 }
 
-/* --- 5. INPUTS & FORMS Z-INDEX --- */
-/* Admin Panel inputs ko sabse upar rakho */
-input, textarea, select, button {
-  outline: none;
+/* Admin/Form Inputs sabse upar rahein taaki click ho sakein */
+input, textarea, select, button, a {
   position: relative;
-  z-index: 2000 !important; /* Background se upar raho */
+  z-index: 2000;
+  outline: none;
 }
 
-/* Dropdown specific fix */
-select {
-  background-color: #0a192f; /* Background dark rakho */
-}
-
-/* --- 6. SCROLLBAR DESIGN (Sundar Scrollbar) --- */
+/* =========================================
+   5. SCROLLBAR (Sundar Scrollbar)
+   ========================================= */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 8px; /* Thoda patla aur stylish */
 }
 ::-webkit-scrollbar-track {
   background: #020c1b;
 }
 ::-webkit-scrollbar-thumb {
   background: #64ffda;
-  border-radius: 5px;
-  border: 2px solid #020c1b;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #ffc107;
+}
+
+/* =========================================
+   6. TEXT SELECTION COLOR
+   ========================================= */
+::selection {
+  background-color: #64ffda;
+  color: #0a192f;
 }

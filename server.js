@@ -20,12 +20,15 @@ const parser = new Parser();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 👇👇👇 IMPORTANT: YAHAN APNA LIVE FRONTEND LINK DALO (Jaise Vercel/Netlify) 👇👇👇
+// Agar link nahi pata, to filhal '*' rakh sakte ho, par production ke liye link best hai.
+const FRONTEND_URL = "https://law-ledger-final.vercel.app/"; // ⚠️ ISSE EDIT KARKE APNA SAHI LINK DALO
+
 // --- 1. MIDDLEWARE & SESSION ---
-// Note: Sessions ke liye 'origin' * nahi ho sakta.
 app.use(cors({
-    origin: ["http://localhost:5173", "https://lawledger.vercel.app"], // Apna Frontend URL yahan add karein
+    origin: [FRONTEND_URL, "http://localhost:5173"], // Live aur Local dono allow kiye taaki error na aaye
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true // Cookies allow karne ke liye zaroori
+    credentials: true
 }));
 app.use(express.json());
 
@@ -34,7 +37,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'lawledger_secret_key',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false } // Https par true karein
+    cookie: { secure: false } // Note: Production me agar HTTPS hai to ise true kar dena chahiye
 }));
 
 app.use(passport.initialize());
@@ -49,18 +52,16 @@ mongoose.connect(MONGO_URI)
 
 // --- 3. DATABASE MODELS ---
 
-// A. User Model (Updated for Google Auth)
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true },
     email: { type: String, unique: true },
-    password: { type: String }, // Google walo ka khali rahega
+    password: { type: String },
     googleId: { type: String },
-    authType: { type: String, default: 'local' }, // 'local' ya 'google'
+    authType: { type: String, default: 'local' },
     createdAt: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', userSchema);
 
-// B. Notes Model
 const noteSchema = new mongoose.Schema({
     subject: String,
     topic: String,
@@ -71,7 +72,6 @@ const noteSchema = new mongoose.Schema({
 });
 const Note = mongoose.model('Note', noteSchema);
 
-// C. Blog Model
 const blogSchema = new mongoose.Schema({
     title: String,
     category: String,
@@ -85,16 +85,13 @@ const Blog = mongoose.model('Blog', blogSchema);
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    // 👇 Yahan Humne LIVE BACKEND URL use kiya hai
+    // 👇 Backend URL (Render Wala)
     callbackURL: "https://musab-law-ledger.onrender.com/auth/google/callback"
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-        // Check agar user pehle se hai
         let user = await User.findOne({ googleId: profile.id });
-        
         if (!user) {
-            // Naya user banao
             user = new User({
                 username: profile.displayName,
                 email: profile.emails[0].value,
@@ -110,7 +107,6 @@ passport.use(new GoogleStrategy({
   }
 ));
 
-// Serialize/Deserialize
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser(async (id, done) => {
     try {
@@ -137,27 +133,24 @@ app.use('/uploads', express.static(uploadDir));
 
 // ➤ AUTH ROUTES (Google)
 
-// 1. Google Login Start
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-// 2. Google Callback (Wapas aane par)
+// 🔥 FIXED: Callback Redirect
 app.get('/auth/google/callback', 
   passport.authenticate('google', { failureRedirect: '/login-failed' }),
   (req, res) => {
-    // Successful login -> Redirect to Frontend (Localhost for now, jab deploy ho to uska link dalna)
-    res.redirect(`http://localhost:5173/admin?login=success&user=${encodeURIComponent(req.user.username)}`);
+    // 👇 AB YE LOCALHOST PAR NAHI, LIVE SITE PAR BHEJEGA
+    res.redirect(`${FRONTEND_URL}/admin?login=success&user=${encodeURIComponent(req.user.username)}`);
   }
 );
 
-// 3. Logout
 app.get('/api/logout', (req, res, next) => {
     req.logout((err) => {
         if (err) return next(err);
-        res.redirect('http://localhost:5173');
+        res.redirect(FRONTEND_URL); // Logout ke baad bhi Live Site par bhejo
     });
 });
 
-// 4. Current User Check
 app.get('/api/current_user', (req, res) => {
     res.send(req.user);
 });
@@ -165,17 +158,13 @@ app.get('/api/current_user', (req, res) => {
 
 // ➤ API ROUTES
 
-// Admin Register (Updated: Strong Password & Email)
 app.post('/api/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
-        
-        // Strong Password Check
         const passwordRegex = /^(?=.*\d)(?=.*[a-zA-Z]).{6,}$/;
         if (!passwordRegex.test(password)) {
             return res.status(400).json({ error: "Password must have 6+ chars, numbers & letters." });
         }
-
         const existingUser = await User.findOne({ email });
         if (existingUser) return res.status(400).json({ error: "Email already exists" });
 
@@ -185,12 +174,9 @@ app.post('/api/register', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Server Error" }); }
 });
 
-// Admin Login (Local)
 app.post('/api/login', async (req, res) => {
     try {
-        const { username, password } = req.body; // Frontend ab username field me email bhej raha hai
-        
-        // Find by Email OR Username
+        const { username, password } = req.body;
         const user = await User.findOne({ 
             $or: [{ email: username }, { username: username }] 
         });
@@ -202,7 +188,6 @@ app.post('/api/login', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Server Error" }); }
 });
 
-// Upload Note
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -219,19 +204,18 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Upload failed" }); }
 });
 
-// Get Notes (With Download Link)
 app.get('/api/notes', async (req, res) => {
     try {
         const notes = await Note.find().sort({ createdAt: -1 });
         const updatedNotes = notes.map(note => ({
             ...note._doc,
+            // Live Backend URL for Download
             downloadLink: `${req.protocol}://${req.get('host')}/uploads/${note.fileName}`
         }));
         res.json(updatedNotes);
     } catch (error) { res.status(500).json({ error: "Failed to fetch notes" }); }
 });
 
-// Post Blog
 app.post('/api/blogs', async (req, res) => {
     try {
         const { title, category, content, author } = req.body; 
@@ -241,7 +225,6 @@ app.post('/api/blogs', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Failed to publish blog" }); }
 });
 
-// Get Blogs
 app.get('/api/blogs', async (req, res) => {
     try {
         const blogs = await Blog.find().sort({ date: -1 });
@@ -249,7 +232,6 @@ app.get('/api/blogs', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Failed to fetch blogs" }); }
 });
 
-// Google News
 app.get('/api/news', async (req, res) => {
     try {
         const feed = await parser.parseURL('https://news.google.com/rss/search?q=Supreme+Court+of+India+Legal+News&hl=en-IN&gl=IN&ceid=IN:en');
@@ -262,10 +244,7 @@ app.get('/api/news', async (req, res) => {
     } catch (error) { res.json([{ title: "Check Backend Console", link: "#" }]); }
 });
 
-
 // ➤ DELETE ROUTES
-
-// Delete Blog
 app.delete('/api/blogs/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -275,7 +254,6 @@ app.delete('/api/blogs/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// Delete Note (With File)
 app.delete('/api/notes/:id', async (req, res) => {
     try {
         const { id } = req.params;

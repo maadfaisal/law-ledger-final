@@ -26,7 +26,7 @@ const FRONTEND_URL = "https://law-ledger-final.vercel.app/"; // ⚠️ ISSE EDIT
 
 // --- 1. MIDDLEWARE & SESSION ---
 app.use(cors({
-    origin: [FRONTEND_URL, "http://localhost:5173"], // Live aur Local dono allow kiye taaki error na aaye
+    origin: [FRONTEND_URL], // Live aur Local dono allow kiye taaki error na aaye
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));

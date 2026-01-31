@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, RefreshCw } from 'lucide-react';
+import { Download, FileText, RefreshCw, Lock } from 'lucide-react'; // Lock icon bhi import kiya
+import { useNavigate } from 'react-router-dom'; // 🔥 Redirect ke liye zaroori
 
 const Notes = () => {
   const [notesData, setNotesData] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // --- RESPONSIVE CHECK ---
+  // Responsive Check
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  const navigate = useNavigate(); // 🔥 Hook for redirection
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -18,7 +21,6 @@ const Notes = () => {
   // --- FETCH NOTES ---
   const fetchNotes = async () => {
     try {
-      // setLoading(true); // Har baar loading spinner dikhane ki zarurat nahi background refresh me
       const response = await fetch('https://musab-law-ledger.onrender.com/api/notes');
       const data = await response.json();
       setNotesData(data);
@@ -31,14 +33,25 @@ const Notes = () => {
 
   useEffect(() => {
     fetchNotes();
-    // ⚠️ CRITICAL CHANGE: 5 sec bahut tez tha. 60 sec (1 min) battery aur server ke liye best hai.
     const interval = setInterval(fetchNotes, 60000); 
     return () => clearInterval(interval);
   }, []);
 
+  // 🔥 SECURITY CHECK HANDLER FOR DOWNLOAD
+  const handleDownload = (e) => {
+    const user = localStorage.getItem("lawUser"); // Check karo user hai ya nahi
+    
+    if (!user) {
+        e.preventDefault(); // 🛑 Download ROKO
+        alert("🔒 Restricted Access! Please Login/Signup to download notes.");
+        navigate('/admin'); // Login page par bhejo
+    }
+    // Agar user hai, to browser default download hone dega
+  };
+
   return (
     <section id="notes" style={{ 
-        padding: isMobile ? '60px 5%' : '80px 10%', // Mobile padding fix
+        padding: isMobile ? '60px 5%' : '80px 10%', 
         background: '#020c1b', 
         position: 'relative', 
         zIndex: 10 
@@ -47,7 +60,7 @@ const Notes = () => {
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '50px' }}>
         <h2 className="font-head" style={{ 
-            fontSize: isMobile ? '2rem' : '3rem', // Responsive Font
+            fontSize: isMobile ? '2rem' : '3rem', 
             color: '#e6f1ff', 
             marginBottom: '10px' 
         }}>
@@ -58,7 +71,7 @@ const Notes = () => {
         </p>
       </div>
 
-      {/* --- REFRESH BUTTON (Agar user ko turant check karna ho) --- */}
+      {/* --- REFRESH BUTTON --- */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
         <button 
             onClick={() => { setLoading(true); fetchNotes(); }}
@@ -71,7 +84,7 @@ const Notes = () => {
         </button>
       </div>
 
-      {/* --- EMPTY STATE (Agar Notes nahi hain) --- */}
+      {/* --- EMPTY STATE --- */}
       {!loading && notesData.length === 0 && (
         <div style={{ 
             textAlign: 'center', color: '#8892b0', 
@@ -93,7 +106,6 @@ const Notes = () => {
       {/* --- GRID LAYOUT --- */}
       <div style={{ 
           display: 'grid', 
-          // ⚠️ Fix: 280px taaki iPhone SE jaise chote phone par bhi fit ho
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
           gap: '30px' 
       }}>
@@ -104,7 +116,7 @@ const Notes = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            whileHover={!isMobile ? { y: -5 } : {}} // Sirf Desktop par hover effect
+            whileHover={!isMobile ? { y: -5 } : {}} 
             style={{
               background: 'rgba(17, 34, 64, 0.7)',
               padding: '25px', borderRadius: '12px', border: '1px solid #233554',
@@ -142,12 +154,13 @@ const Notes = () => {
                 {note.size || 'PDF'}
               </span>
               
-              {/* --- DOWNLOAD BUTTON --- */}
+              {/* --- DOWNLOAD BUTTON (PROTECTED) --- */}
               <motion.a 
                 href={note.downloadLink} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 download
+                onClick={handleDownload} // 🔥 CLICK CHECK ADDED HERE
                 whileHover={{ scale: 1.05, backgroundColor: 'rgba(100, 255, 218, 0.1)' }}
                 whileTap={{ scale: 0.95 }}
                 style={{
@@ -165,6 +178,7 @@ const Notes = () => {
                   fontSize: '0.9rem'
                 }}
               >
+                {/* Agar login nahi hai to Lock dikha sakte ho, par abhi Download hi rakhte hain */}
                 <Download size={16} /> Download
               </motion.a>
               

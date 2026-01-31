@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight } from 'lucide-react';
+import { X, ArrowRight, Lock } from 'lucide-react'; // Lock icon add kiya
+import { useNavigate } from 'react-router-dom'; // 🔥 Redirect ke liye zaroori
 
 const Blogs = () => {
   const [blogs, setBlogs] = useState([]);
@@ -9,6 +10,8 @@ const Blogs = () => {
   
   // Responsive Check
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  const navigate = useNavigate(); // 🔥 Hook for redirection
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -18,7 +21,6 @@ const Blogs = () => {
 
   // Fetch Blogs
   useEffect(() => {
-    // 👇 YAHAN GALTI THI: Localhost hata kar Asli Server ka Link lagao
     fetch('https://musab-law-ledger.onrender.com/api/blogs')
       .then(res => res.json())
       .then(data => { setBlogs(data); setLoading(false); })
@@ -27,6 +29,21 @@ const Blogs = () => {
           setLoading(false);
       });
   }, []);
+
+  // 🔥 SECURITY CHECK HANDLER
+  const handleBlogClick = (blog) => {
+    const user = localStorage.getItem("lawUser"); // Check karo user hai ya nahi
+    
+    if (!user) {
+        // Agar user nahi hai to alert do aur login page par bhejo
+        alert("🔒 Restricted Access! Please Login/Signup to read full articles.");
+        navigate('/admin'); 
+        return;
+    }
+    
+    // Agar user hai to blog kholo
+    setSelectedBlog(blog);
+  };
 
   return (
     <section id="blogs" style={{ 
@@ -59,7 +76,6 @@ const Blogs = () => {
         {loading ? (
             <p style={{color:'white', textAlign: 'center', gridColumn: '1/-1'}}>Loading thoughts...</p>
         ) : blogs.length === 0 ? (
-            // Agar koi blog nahi hai to ye dikhao
             <div style={{ textAlign: 'center', gridColumn: '1/-1', padding: '40px', color: '#8892b0', border: '1px dashed #233554', borderRadius: '10px' }}>
                 <p>No articles published yet.</p>
                 <p style={{fontSize: '0.8rem'}}>Go to Admin Panel to write one.</p>
@@ -72,7 +88,7 @@ const Blogs = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: index * 0.1 }}
-                onClick={() => setSelectedBlog(blog)}
+                onClick={() => handleBlogClick(blog)} // 🔥 DIRECT OPEN NAHI HOGA AB
                 style={{
                   background: 'rgba(2, 12, 27, 0.7)',
                   backdropFilter: 'blur(10px)',
@@ -124,7 +140,8 @@ const Blogs = () => {
                     color: '#64ffda', marginTop: '20px', 
                     fontWeight: 'bold', fontSize: '0.85rem' 
                 }}>
-                    READ FULL ARTICLE <ArrowRight size={16} />
+                    {/* Icon change kar diya taaki user ko lage protected hai */}
+                    READ FULL ARTICLE <Lock size={14} /> 
                 </div>
               </motion.div>
             ))

@@ -6,39 +6,61 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv'; // Agar .env use karna ho to
+import dotenv from 'dotenv';
+import session from 'express-session';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
 // --- SETUP ---
+dotenv.config();
 const app = express();
 const parser = new Parser();
-dotenv.config();
 
 // Current Directory Fix
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Middleware
+// --- 1. MIDDLEWARE & SESSION ---
+// Note: Sessions ke liye 'origin' * nahi ho sakta.
 app.use(cors({
-    origin: "*", 
+    origin: ["http://localhost:5173", "https://lawledger.vercel.app"], // Apna Frontend URL yahan add karein
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
+    credentials: true // Cookies allow karne ke liye zaroori
 }));
 app.use(express.json());
 
-// --- 1. MONGODB CONNECTION 🔗 ---
+// Session Setup
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'lawledger_secret_key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } // Https par true karein
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// --- 2. MONGODB CONNECTION 🔗 ---
 const MONGO_URI = "mongodb+srv://FAISAL:MAAD@cluster0.ftl5jci.mongodb.net/?appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ MongoDB Connected Successfully!"))
     .catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
-// --- 2. DATABASE MODELS ---
+// --- 3. DATABASE MODELS ---
+
+// A. User Model (Updated for Google Auth)
 const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true } 
+    username: { type: String, required: true },
+    email: { type: String, unique: true },
+    password: { type: String }, // Google walo ka khali rahega
+    googleId: { type: String },
+    authType: { type: String, default: 'local' }, // 'local' ya 'google'
+    createdAt: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', userSchema);
 
+// B. Notes Model
 const noteSchema = new mongoose.Schema({
     subject: String,
     topic: String,
@@ -49,6 +71,7 @@ const noteSchema = new mongoose.Schema({
 });
 const Note = mongoose.model('Note', noteSchema);
 
+// C. Blog Model
 const blogSchema = new mongoose.Schema({
     title: String,
     category: String,
@@ -58,45 +81,124 @@ const blogSchema = new mongoose.Schema({
 });
 const Blog = mongoose.model('Blog', blogSchema);
 
-// --- 3. MULTER CONFIG ---
+// --- 4. PASSPORT GOOGLE STRATEGY ---
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    // 👇 Yahan Humne LIVE BACKEND URL use kiya hai
+    callbackURL: "https://musab-law-ledger.onrender.com/auth/google/callback"
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+        // Check agar user pehle se hai
+        let user = await User.findOne({ googleId: profile.id });
+        
+        if (!user) {
+            // Naya user banao
+            user = new User({
+                username: profile.displayName,
+                email: profile.emails[0].value,
+                googleId: profile.id,
+                authType: 'google'
+            });
+            await user.save();
+        }
+        return done(null, user);
+    } catch (err) {
+        return done(err, null);
+    }
+  }
+));
+
+// Serialize/Deserialize
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id, done) => {
+    try {
+        const user = await User.findById(id);
+        done(null, user);
+    } catch(err) {
+        done(err, null);
+    }
+});
+
+// --- 5. MULTER CONFIG ---
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '-')) // Spaces hata diye filename se
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '-'))
 });
 const upload = multer({ storage });
-
-// Serve Uploads Folder Publicly (Zaroori hai download ke liye)
 app.use('/uploads', express.static(uploadDir));
 
 
 // --- ROUTES ---
 
-// Admin Register
+// ➤ AUTH ROUTES (Google)
+
+// 1. Google Login Start
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+// 2. Google Callback (Wapas aane par)
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login-failed' }),
+  (req, res) => {
+    // Successful login -> Redirect to Frontend (Localhost for now, jab deploy ho to uska link dalna)
+    res.redirect(`http://localhost:5173/admin?login=success&user=${encodeURIComponent(req.user.username)}`);
+  }
+);
+
+// 3. Logout
+app.get('/api/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) return next(err);
+        res.redirect('http://localhost:5173');
+    });
+});
+
+// 4. Current User Check
+app.get('/api/current_user', (req, res) => {
+    res.send(req.user);
+});
+
+
+// ➤ API ROUTES
+
+// Admin Register (Updated: Strong Password & Email)
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password } = req.body;
-        const existingUser = await User.findOne({ username });
-        if (existingUser) return res.status(400).json({ error: "Username already exists" });
-        const newUser = new User({ username, password });
+        const { username, email, password } = req.body;
+        
+        // Strong Password Check
+        const passwordRegex = /^(?=.*\d)(?=.*[a-zA-Z]).{6,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({ error: "Password must have 6+ chars, numbers & letters." });
+        }
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) return res.status(400).json({ error: "Email already exists" });
+
+        const newUser = new User({ username, email, password, authType: 'local' });
         await newUser.save();
         res.json({ success: true, message: "Account created!" });
     } catch (error) { res.status(500).json({ error: "Server Error" }); }
 });
 
-// Admin Login
+// Admin Login (Local)
 app.post('/api/login', async (req, res) => {
     try {
-        const { username, password } = req.body;
-        const user = await User.findOne({ username });
+        const { username, password } = req.body; // Frontend ab username field me email bhej raha hai
+        
+        // Find by Email OR Username
+        const user = await User.findOne({ 
+            $or: [{ email: username }, { username: username }] 
+        });
+
         if (!user || user.password !== password) {
             return res.status(400).json({ error: "Invalid Credentials" });
         }
-        res.json({ success: true, message: "Login Successful" });
+        res.json({ success: true, message: "Login Successful", user: user.username });
     } catch (error) { res.status(500).json({ error: "Server Error" }); }
 });
 
@@ -112,32 +214,23 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             date: new Date().toLocaleDateString(),
             fileName: req.file.filename
         });
-
         await newNote.save();
         res.json({ success: true, file: req.file });
     } catch (error) { res.status(500).json({ error: "Upload failed" }); }
 });
 
-// ➤ 🔥 UPDATED: Get All Notes (With Download Link)
-
+// Get Notes (With Download Link)
 app.get('/api/notes', async (req, res) => {
     try {
         const notes = await Note.find().sort({ createdAt: -1 });
-        
-        // Notes ke saath Full URL jod kar bhejo
-        const updatedNotes = notes.map(note => {
-            return {
-                ...note._doc, // Purana data
-                // URL banao: https://your-site.onrender.com/uploads/filename.pdf
-                downloadLink: `${req.protocol}://${req.get('host')}/uploads/${note.fileName}`
-            };
-        });
-
+        const updatedNotes = notes.map(note => ({
+            ...note._doc,
+            downloadLink: `${req.protocol}://${req.get('host')}/uploads/${note.fileName}`
+        }));
         res.json(updatedNotes);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch notes" });
-    }
+    } catch (error) { res.status(500).json({ error: "Failed to fetch notes" }); }
 });
+
 // Post Blog
 app.post('/api/blogs', async (req, res) => {
     try {
@@ -182,29 +275,19 @@ app.delete('/api/blogs/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// ➤ 🔥 UPDATED: Delete Note (Also deletes file from folder)
+// Delete Note (With File)
 app.delete('/api/notes/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // 1. Database se note dhundo
         const noteToDelete = await Note.findById(id);
         if (!noteToDelete) return res.status(404).json({ error: "Note not found" });
 
-        // 2. Uploads folder se file uda do
         const filePath = path.join(uploadDir, noteToDelete.fileName);
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath); // File delete
-        }
+        if (fs.existsSync(filePath)) { fs.unlinkSync(filePath); }
 
-        // 3. Database se entry uda do
         await Note.findByIdAndDelete(id);
-
         res.json({ success: true, message: "Note & File Deleted Successfully" });
-    } catch (error) {
-        console.error("Delete Error:", error);
-        res.status(500).json({ error: error.message });
-    }
+    } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 // Start Server
